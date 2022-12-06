@@ -21,18 +21,20 @@ class Node :
         self.states = ["leader", "follower", "candidate"]
         
         print("Node initialized")
+        ## TODO: XMLRPCServer is blocking all output,find a fix
         self.server = SimpleXMLRPCServer((self.node_name, self.port))
-        self.server.register_function(self.message_received)
+        self.server.register_function(self.message_received, "message_received")
 
         self.server.serve_forever()
         print("XMLRPCServer started")
+
     ## basic functions
 
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
-        thread = threading.Thread(target=self.node_self_loop, args=self.state)
-        thread.daemon = True # make it background
-        thread.start() ## self loop started in thread
+        self.loop_thread = threading.Thread(target=self.node_self_loop, args=self.state)
+        self.loop_thread.daemon = True # make it background
+        self.loop_thread.start() ## self loop started in thread
         print("loop thread started")
 
     def is_valid_state(self):
@@ -62,8 +64,8 @@ class Node :
     # append entries RPC -- might be optional??
     def append_entries(self, node, port):
         ## just make calls to node's message_received
-        s = ServerProxy('http://'+node+':'+port)
-        response = s.self.message_received()
+        serverProxy = ServerProxy('http://'+node+':'+port)
+        response = serverProxy.message_received()
         print(response.value+" "+node)
         
 
@@ -103,7 +105,10 @@ class Node :
                 self.follower()
             else:
                 self.candidate()
-             
+    
+    def terminate_self_loop_thread(self):
+        self.run_thread = False
+        self.loop_thread.join()
 
 
 if __name__ == '__main__':
@@ -133,6 +138,5 @@ if __name__ == '__main__':
         print("Exception", e)
     finally:
         # terminate thread(s)
-        my_node.run_thread = False
-        # my_node.thread.join()
+        my_node.terminate_self_loop_thread()
         print("Node stopped", args.name)
