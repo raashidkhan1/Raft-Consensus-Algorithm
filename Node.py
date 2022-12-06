@@ -42,7 +42,7 @@ class Node :
     # leader sends heartbeat to every node
     def send_heartbeat(self):
         all_heartbeat_threads = []
-        for node in self.clusterNodes:
+        for node in self.cluster_nodes:
             thread = threading.Thread(target=self.append_entries, args=(node, self.port))
             thread.start()
             all_heartbeat_threads.append(thread)
@@ -108,13 +108,20 @@ class Node :
 if __name__ == '__main__':
     print('Im a working')
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--name", default="node102", type=str, help='name of node like node102')
-    argparser.add_argument("--port", default=8089, type=int, help="communication port for sending and listening messages")
+    argparser.add_argument("--name", default=0, type=str, help='name of node like node102')
+    argparser.add_argument("--port", default=8000, type=int, help="communication port for sending and listening messages")
     argparser.add_argument("--clusterNodes", nargs='+', default=[], type=str, help="nodes in the reserved cluster like node102 node103 node104")
     args = argparser.parse_args()
 
     default_state = "follower"
-    my_node = Node(args.name, default_state, args.port, args.clusterNodes)
+
+    # removing the current node from its cluster list
+    cluster = [node for node in args.clusterNodes if node != args.name]
+
+    # **experimental** incrementing the port number based on index, separate ports for separate node 
+    port = args.port + args.clusterNodes.index(args.name)
+
+    my_node = Node(args.name, default_state, port, cluster)
     try:
         #initialze node
         print("Starting node", args.name)
