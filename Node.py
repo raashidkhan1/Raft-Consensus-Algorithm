@@ -114,11 +114,10 @@ if __name__ == '__main__':
     args = argparser.parse_args()
 
     default_state = "follower"
-
+    my_node = Node(args.name, default_state, args.port, args.clusterNodes)
     try:
         #initialze node
         print("Starting node", args.name)
-        my_node = Node(args.name, default_state, args.port, args.clusterNodes)
         if my_node.is_valid_state():
             my_node.start_loop_thread()
         print("Started node", args.name)
