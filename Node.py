@@ -2,6 +2,9 @@ import time
 import random
 import threading
 import argparse
+from xmlrpc.server import SimpleXMLRPCServer
+from xmlrpc.client import ServerProxy
+
 class Node :
 
     def __init__(self, name, state, port, clusterNodes) -> None:
@@ -18,6 +21,11 @@ class Node :
         self.states = ["leader", "follower", "candidate"]
         self.thread = None
 
+        self.server = SimpleXMLRPCServer((name, port),)
+        self.server.register_function(self.message_received)
+
+        self.server.serve_forever()
+        
     ## basic functions
 
     def start_loop_thread(self):
@@ -33,9 +41,9 @@ class Node :
 
     # leader sends heartbeat to every node
     def send_heartbeat(self):
-        all_heartbeat_threads:threading.Thread = []
+        all_heartbeat_threads = []
         for node in self.clusterNodes:
-            thread = threading.Thread(target=self.append_entries, args=node)
+            thread = threading.Thread(target=self.append_entries, args=(node, self.port))
             thread.start()
             all_heartbeat_threads.append(thread)
         
@@ -51,13 +59,16 @@ class Node :
         pass
     
     # append entries RPC -- might be optional??
-    def append_entries(self, node):
+    def append_entries(self, node, port):
         ## just make calls to node's message_received
-        pass
+        s = ServerProxy('http://'+node+':'+port)
+        response = s.self.message_received()
+        print(response.value+" "+node)
         
 
     def message_received(self):
         self.heartbeat_received = True
+        return "i'm happy"
 
     # election vote count check
     def check_election_winner(self):
