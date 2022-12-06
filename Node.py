@@ -19,7 +19,7 @@ class Node :
         self.heartbeat_received = False
         # all valid states
         self.states = ["leader", "follower", "candidate"]
-        self.thread = None
+        
         print("Node initialized")
         self.server = SimpleXMLRPCServer((self.node_name, self.port))
         self.server.register_function(self.message_received)
@@ -30,9 +30,9 @@ class Node :
 
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
-        self.thread = threading.Thread(target=self.node_self_loop, args=self.state)
-        self.thread.daemon = True # make it background
-        self.thread.start() ## self loop started in thread
+        thread = threading.Thread(target=self.node_self_loop, args=self.state)
+        thread.daemon = True # make it background
+        thread.start() ## self loop started in thread
         print("loop thread started")
 
     def is_valid_state(self):
@@ -134,5 +134,5 @@ if __name__ == '__main__':
     finally:
         # terminate thread(s)
         my_node.run_thread = False
-        my_node.thread.join()
+        # my_node.thread.join()
         print("Node stopped", args.name)
