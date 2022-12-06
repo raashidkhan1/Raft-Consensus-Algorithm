@@ -20,12 +20,12 @@ class Node :
         # all valid states
         self.states = ["leader", "follower", "candidate"]
         self.thread = None
-
-        self.server = SimpleXMLRPCServer((name, port),)
+        print("Node initialized")
+        self.server = SimpleXMLRPCServer((self.node_name, self.port))
         self.server.register_function(self.message_received)
 
         self.server.serve_forever()
-        
+        print("XMLRPCServer started")
     ## basic functions
 
     def start_loop_thread(self):
@@ -33,6 +33,7 @@ class Node :
         self.thread = threading.Thread(target=self.node_self_loop, args=self.state)
         self.thread.daemon = True # make it background
         self.thread.start() ## self loop started in thread
+        print("loop thread started")
 
     def is_valid_state(self):
         if self.state in self.states:
@@ -127,7 +128,7 @@ if __name__ == '__main__':
         print("Starting node", args.name)
         if my_node.is_valid_state():
             my_node.start_loop_thread()
-        print("Started node", args.name)
+            print("Started node", args.name)
     finally:
         # terminate thread(s)
         my_node.run_thread = False
