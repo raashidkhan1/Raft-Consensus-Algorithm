@@ -122,14 +122,15 @@ if __name__ == '__main__':
     # **experimental** incrementing the port number based on index, separate ports for separate node 
     port = args.port + args.clusterNodes.index(args.name)
 
-    my_node = None
+    my_node = Node(args.name, default_state, port, cluster)
     try:
         #initialze node
         print("Starting node", args.name)
-        my_node = Node(args.name, default_state, port, cluster)
         if my_node.is_valid_state():
             my_node.start_loop_thread()
             print("Started node", args.name)
+    except Exception as e:
+        print("Exception", e)
     finally:
         # terminate thread(s)
         my_node.run_thread = False
