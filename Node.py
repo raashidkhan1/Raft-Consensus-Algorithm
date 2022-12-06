@@ -7,7 +7,7 @@ from xmlrpc.client import ServerProxy
 
 class Node :
 
-    def __init__(self, name, state, port, clusterNodes) -> None:
+    def __init__(self, name, state, port, clusterNodes):
         self.node_name = name
         self.state = state
         self.port = port
@@ -122,10 +122,11 @@ if __name__ == '__main__':
     # **experimental** incrementing the port number based on index, separate ports for separate node 
     port = args.port + args.clusterNodes.index(args.name)
 
-    my_node = Node(args.name, default_state, port, cluster)
+    my_node = None
     try:
         #initialze node
         print("Starting node", args.name)
+        my_node = Node(args.name, default_state, port, cluster)
         if my_node.is_valid_state():
             my_node.start_loop_thread()
             print("Started node", args.name)
