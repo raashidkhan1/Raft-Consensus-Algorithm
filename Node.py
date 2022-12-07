@@ -22,7 +22,6 @@ class Node :
         self.states = ["leader", "follower", "candidate"]
         print("Node initialized")
 
-        # self.node_self_loop()
         print("Starting XMLRPC Server on node", self.node_name)
         self.server = Server(self.node_name, self.port)
         self.server.register_function(self.message_received, "message_received")
@@ -31,7 +30,7 @@ class Node :
     ## basic functions
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
-        self.loop_thread = threading.Thread(target=self.node_self_loop, args=self.state)
+        self.loop_thread = threading.Thread(target=self.node_self_loop)
         self.loop_thread.daemon = True # make it background
         self.loop_thread.start() ## self loop started in thread
         print("loop thread started")
@@ -94,18 +93,18 @@ class Node :
         while self.state == "follower":
             self.heartbeat_received = False
 
-    def node_self_loop(self, state):
+    def node_self_loop(self):
         print('inside loop thread')
-        index = self.states.index(state)
-        
-        while self.run_thread:
-            if index == 0:
-                self.leader()
-            elif index == 1:
-                print('follower is chosen')
-                self.follower()
-            else:
-                self.candidate()
+        # index = self.states.index(state)
+        self.follower()
+        # while self.run_thread:
+        #     if index == 0:
+        #         self.leader()
+        #     elif index == 1:
+        #         print('follower is chosen')
+        #         self.follower()
+        #     else:
+        #         self.candidate()
     
     def terminate_self_loop_thread(self):
         self.run_thread = False
