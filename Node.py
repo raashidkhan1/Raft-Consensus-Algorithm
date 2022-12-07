@@ -7,9 +7,9 @@ from xmlrpc.client import ServerProxy
 
 class Node :
 
-    def __init__(self, name, state, port, clusterNodes):
-        self.node_name = name
-        self.state = state
+    def __init__(self, name,port, clusterNodes):
+        self.hostname = name
+        self.state = 'follower'
         self.port = port
         self.heartbeatTimeout = 100
         self.electionTimeout = random.randrange(100, 120)
@@ -21,13 +21,34 @@ class Node :
         self.states = ["leader", "follower", "candidate"]
         
         print("Node initialized")
-        self.server = SimpleXMLRPCServer((self.node_name, self.port))
-        self.server.register_function(self.message_received)
+#        self.server = SimpleXMLRPCServer((self.hostname, self.port))
+        #self.server.register_function(self.message_received)
 
-        self.server.serve_forever()
-        print("XMLRPCServer started")
+
+
+        with SimpleXMLRPCServer((self.hostname, self.port)) as server:
+            print("Server Started")
+            server.register_function(self.message_received,'rpc_hello')
+
+
+        self.rpc_test()
+        #self.server.serve_forever()
+#        print("XMLRPCServer started")
+
+
+
+    def rpc_test(self):
+        for node in self.cluster_nodes:
+            print("Calling rpc from ", self.hostname)
+            s = ServerProxy('http://'+node['name']+':'+ str(node['port']))
+            print(s.rpc_hello())
+
+
+
+
+
+
     ## basic functions
-
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
         thread = threading.Thread(target=self.node_self_loop, args=self.state)
@@ -107,6 +128,7 @@ class Node :
 
 
 if __name__ == '__main__':
+    """ 
     print('Im a working')
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--name", default=0, type=str, help='name of node like node102')
@@ -136,3 +158,31 @@ if __name__ == '__main__':
         my_node.run_thread = False
         # my_node.thread.join()
         print("Node stopped", args.name)
+    """
+
+    print("HERE")
+    parser = argparse.ArgumentParser()
+
+        #Reading arguments
+    parser.add_argument('--name', default=0, type=str)
+    parser.add_argument('--port', default=8000, type=int)
+    parser.add_argument('--clusterNodes', nargs='+', type=str, default=[])
+    args = parser.parse_args()
+
+    cluster=[]
+
+    for i,node in enumerate(args.clusterNodes):
+    	data={
+    	'name':node,
+    	'port':args.port+ i
+            }
+    	cluster.append(data)
+
+    hostname = args.name
+    port = args.port + args.clusterNodes.index(args.name)
+
+
+        #Remove self from cluster
+    nodes = [node for node in cluster if node['name'] != args.name]
+
+    node=Node(hostname,port,nodes)

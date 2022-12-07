@@ -3,6 +3,6 @@ read -r -a workers <<< "$nodes"
 
 for node in "${workers[@]}"
 do
-  echo "" | ssh "$node" python3 $CODE/Node.py --name "$node" --port 8000 --clusterNodes "${workers[@]}" &
+  echo "" | ssh "$node" python3 $CODE/Node.py --name "$node" --port 8100 --clusterNodes "${workers[@]}" &
 done
 
