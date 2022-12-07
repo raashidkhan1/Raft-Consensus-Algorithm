@@ -30,7 +30,7 @@ class Node :
     ## basic functions
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
-        self.loop_thread = threading.Thread(target=self.node_self_loop)
+        self.loop_thread = threading.Thread(target=self.node_self_loop, args=(self.state,))
         self.loop_thread.daemon = True # make it background
         self.loop_thread.start() ## self loop started in thread
         print("loop thread started")
@@ -44,7 +44,7 @@ class Node :
     def send_heartbeat(self):
         all_heartbeat_threads = []
         for node in self.cluster_nodes:
-            thread = threading.Thread(target=self.append_entries, args=(node, self.port))
+            thread = threading.Thread(target=self.append_entries, args=(node, self.port,))
             thread.start()
             all_heartbeat_threads.append(thread)
         
@@ -93,18 +93,18 @@ class Node :
         while self.state == "follower":
             self.heartbeat_received = False
 
-    def node_self_loop(self):
+    def node_self_loop(self, state):
         print('inside loop thread')
-        # index = self.states.index(state)
-        self.follower()
-        # while self.run_thread:
-        #     if index == 0:
-        #         self.leader()
-        #     elif index == 1:
-        #         print('follower is chosen')
-        #         self.follower()
-        #     else:
-        #         self.candidate()
+        index = self.states.index(state)
+
+        while self.run_thread:
+            if index == 0:
+                self.leader()
+            elif index == 1:
+                print('follower is chosen')
+                self.follower()
+            else:
+                self.candidate()
     
     def terminate_self_loop_thread(self):
         self.run_thread = False
@@ -140,10 +140,9 @@ if __name__ == '__main__':
     try:
         #initialze node
         print("Starting node", args.name)
-        my_node.node_self_loop(default_state)
-        # if my_node.is_valid_state():
-            # my_node.start_loop_thread()
-            # print("Started node", args.name)
+        if my_node.is_valid_state():
+            my_node.start_loop_thread()
+            print("Started node", args.name)
         # exit handler *terminates threads and kills server
         # atexit.register(my_node.handle_exit)
         # signal.signal(signal.SIGTERM, my_node.handle_exit)
