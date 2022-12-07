@@ -95,11 +95,12 @@ class Node :
 
     def node_self_loop(self, state):
         index = self.states.index(state)
-
+        print('inside loop thread', index, type(index))
         while self.run_thread:
             if index == 0:
                 self.leader()
             elif index == 1:
+                print('follower is chosen')
                 self.follower()
             else:
                 self.candidate()
