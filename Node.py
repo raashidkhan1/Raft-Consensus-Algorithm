@@ -142,9 +142,11 @@ if __name__ == '__main__':
             my_node.start_loop_thread()
             print("Started node", args.name)
         # exit handler *terminates threads and kills server
-        atexit.register(my_node.handle_exit)
-        signal.signal(signal.SIGTERM, my_node.handle_exit)
-        signal.signal(signal.SIGINT, my_node.handle_exit)
+        # atexit.register(my_node.handle_exit)
+        # signal.signal(signal.SIGTERM, my_node.handle_exit)
+        # signal.signal(signal.SIGINT, my_node.handle_exit)
+    except KeyboardInterrupt:
+        my_node.handle_exit()
     except Exception as e:
         print("Exception", e)
     
