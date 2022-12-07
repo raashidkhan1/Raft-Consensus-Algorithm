@@ -2,9 +2,10 @@ import time
 import random
 import threading
 import argparse
-from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.client import ServerProxy
-
+from Server import Server
+import atexit
+import signal
 class Node :
 
     def __init__(self, name, state, port, clusterNodes):
@@ -19,17 +20,14 @@ class Node :
         self.heartbeat_received = False
         # all valid states
         self.states = ["leader", "follower", "candidate"]
-        
         print("Node initialized")
-        ## TODO: XMLRPCServer is blocking all output,find a fix
-        self.server = SimpleXMLRPCServer((self.node_name, self.port))
-        self.server.register_function(self.message_received, "message_received")
 
-        self.server.serve_forever()
+        print("Starting XMLRPC Server on node", self.node_name)
+        self.server = Server(self.node_name, self.port)
+        self.server.register_function(self.message_received, "message_received")
         print("XMLRPCServer started")
 
     ## basic functions
-
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
         self.loop_thread = threading.Thread(target=self.node_self_loop, args=self.state)
@@ -110,6 +108,15 @@ class Node :
         self.run_thread = False
         self.loop_thread.join()
 
+    def handle_exit(self):
+        try:
+            self.terminate_self_loop_thread()
+            self.server.stop_server()
+            self.server.join()
+            print("Node stopped", args.name)
+        except Exception as e:
+            print("Couldn't handle exit! error: ", e)
+
 
 if __name__ == '__main__':
     print('Im a working')
@@ -127,16 +134,17 @@ if __name__ == '__main__':
     # **experimental** incrementing the port number based on index, separate ports for separate node 
     port = args.port + args.clusterNodes.index(args.name)
 
-    my_node = Node(args.name, default_state, port, cluster)
     try:
         #initialze node
         print("Starting node", args.name)
+        my_node = Node(args.name, default_state, port, cluster)
         if my_node.is_valid_state():
             my_node.start_loop_thread()
             print("Started node", args.name)
+        # exit handler *terminates threads and kills server
+        atexit.register(my_node.handle_exit)
+        signal.signal(signal.SIGTERM, my_node.handle_exit)
+        signal.signal(signal.SIGINT, my_node.handle_exit)
     except Exception as e:
         print("Exception", e)
-    finally:
-        # terminate thread(s)
-        my_node.terminate_self_loop_thread()
-        print("Node stopped", args.name)
+    
