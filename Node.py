@@ -21,7 +21,8 @@ class Node :
         # all valid states
         self.states = ["leader", "follower", "candidate"]
         print("Node initialized")
-
+        time.sleep(1)
+        self.start_loop_thread()
         print("Starting XMLRPC Server on node", self.node_name)
         self.server = Server(self.node_name, self.port)
         self.server.register_function(self.message_received, "message_received")
@@ -135,13 +136,14 @@ if __name__ == '__main__':
     # **experimental** incrementing the port number based on index, separate ports for separate node 
     port = args.port + args.clusterNodes.index(args.name)
 
+    my_node = Node(args.name, default_state, port, cluster)
     try:
         #initialze node
         print("Starting node", args.name)
-        my_node = Node(args.name, default_state, port, cluster)
-        if my_node.is_valid_state():
-            my_node.start_loop_thread()
-            print("Started node", args.name)
+        
+        # if my_node.is_valid_state():
+            # my_node.start_loop_thread()
+            # print("Started node", args.name)
         # exit handler *terminates threads and kills server
         # atexit.register(my_node.handle_exit)
         # signal.signal(signal.SIGTERM, my_node.handle_exit)
