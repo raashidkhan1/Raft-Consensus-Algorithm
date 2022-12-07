@@ -21,8 +21,8 @@ class Node :
         # all valid states
         self.states = ["leader", "follower", "candidate"]
         print("Node initialized")
-        time.sleep(1)
-        self.start_loop_thread()
+
+        # self.node_self_loop()
         print("Starting XMLRPC Server on node", self.node_name)
         self.server = Server(self.node_name, self.port)
         self.server.register_function(self.message_received, "message_received")
@@ -95,8 +95,9 @@ class Node :
             self.heartbeat_received = False
 
     def node_self_loop(self, state):
+        print('inside loop thread')
         index = self.states.index(state)
-        print('inside loop thread', index, type(index))
+        
         while self.run_thread:
             if index == 0:
                 self.leader()
@@ -140,7 +141,7 @@ if __name__ == '__main__':
     try:
         #initialze node
         print("Starting node", args.name)
-        
+        my_node.node_self_loop(default_state)
         # if my_node.is_valid_state():
             # my_node.start_loop_thread()
             # print("Started node", args.name)
