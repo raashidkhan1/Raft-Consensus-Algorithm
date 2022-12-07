@@ -4,7 +4,6 @@ from xmlrpc.server import SimpleXMLRPCServer
 class Server(Thread):
     def __init__(self, node_name, port) -> None:
         super().__init__()
-        self.running = True
         self.server = SimpleXMLRPCServer((node_name, port))
 
     def run(self) -> None:

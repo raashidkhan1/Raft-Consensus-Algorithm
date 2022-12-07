@@ -12,12 +12,13 @@ class Node :
         self.node_name = name
         self.state = state
         self.port = port
-        self.heartbeatTimeout = 100
-        self.electionTimeout = random.randrange(100, 120)
+        self.heartbeat_timeout = 10
+        self.election_timeout = self.timer()
         self.term = 0
         self.run_thread = True
         self.cluster_nodes = clusterNodes
         self.heartbeat_received = False
+        self.vote_count = 0
         # all valid states
         self.states = ["leader", "follower", "candidate"]
         print("Node initialized")
@@ -25,6 +26,7 @@ class Node :
         print("Starting XMLRPC Server on node", self.node_name)
         self.server = Server(self.node_name, self.port)
         self.server.register_function(self.message_received, "message_received")
+        self.server.start()
         print("XMLRPCServer started")
 
     ## basic functions
@@ -57,41 +59,51 @@ class Node :
 
     # timer logic for 
     def timer(self):
-        pass
+        return random.randrange(100, 120)
     
     # append entries RPC -- might be optional??
     def append_entries(self, node, port):
         ## just make calls to node's message_received
         serverProxy = ServerProxy('http://'+node+':'+port)
         response = serverProxy.message_received()
-        print(response.value+" "+node)
+        print(response.value+" on  "+node)
         
 
     def message_received(self):
         self.heartbeat_received = True
-        return "i'm happy"
+        return "recieved heartbeat"
 
     # election vote count check
     def check_election_winner(self):
-        pass
+        ## count votes, send win/lose response
+        return False
 
     ### functions for each type of node
 
     def leader(self):
         print('Im a leader, bro!')
-        while self.state == "leader":
-            time.sleep(self.heartbeatTimeout)
+        while self.state == self.states[0]:
+            time.sleep(self.heartbeat_timeout)
             self.send_heartbeat()
 
     def candidate(self):
         print('Im a candidate, bro!')
-        while self.state == "candidate":
-            pass
+        while self.state == self.states[2]:
+            self.term +=1
+            self.vote_count +=1
+            ## TODO: call election aka request votes rpc
+            print(f'{self.node_name} wants to contest the leader election')
+            if self.vote_count == 1:
+                self.state = self.states[1]
 
     def follower(self):
         print('Im a follower, bro!')
-        while self.state == "follower":
+        while self.state == self.states[1]:
             self.heartbeat_received = False
+            time.sleep(self.election_timeout)
+            if not self.heartbeat_received:
+                self.state = self.states[2] 
+                
 
     def node_self_loop(self, state):
         print('inside loop thread')
@@ -101,7 +113,6 @@ class Node :
             if index == 0:
                 self.leader()
             elif index == 1:
-                print('follower is chosen')
                 self.follower()
             else:
                 self.candidate()
@@ -143,12 +154,14 @@ if __name__ == '__main__':
         if my_node.is_valid_state():
             my_node.start_loop_thread()
             print("Started node", args.name)
-        # exit handler *terminates threads and kills server
-        # atexit.register(my_node.handle_exit)
-        # signal.signal(signal.SIGTERM, my_node.handle_exit)
-        # signal.signal(signal.SIGINT, my_node.handle_exit)
-    except KeyboardInterrupt:
-        my_node.handle_exit()
+    # not so good way of handling it, but don't see any working option yet, TODO: find option
+    # except KeyboardInterrupt:
+    #     my_node.handle_exit()
     except Exception as e:
         print("Exception", e)
+    
+            # exit handler *terminates threads and kills server
+    atexit.register(my_node.handle_exit)
+    signal.signal(signal.SIGTERM, my_node.handle_exit)
+    signal.signal(signal.SIGINT, my_node.handle_exit)
     
