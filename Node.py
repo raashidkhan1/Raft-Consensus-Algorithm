@@ -36,6 +36,8 @@ class Node :
         self.loop_thread.daemon = True # make it background
         self.loop_thread.start() ## self loop started in thread
         print("loop thread started")
+        while self.loop_thread.is_alive():
+            self.loop_thread.join(1)
 
     def is_valid_state(self):
         if self.state in self.states:
@@ -102,7 +104,8 @@ class Node :
             self.heartbeat_received = False
             time.sleep(self.election_timeout)
             if not self.heartbeat_received:
-                self.state = self.states[2] 
+                # self.state = self.states[2] ##implement candidate logic first
+                pass
                 
 
     def node_self_loop(self, state):
@@ -155,8 +158,8 @@ if __name__ == '__main__':
             my_node.start_loop_thread()
             print("Started node", args.name)
     # not so good way of handling it, but don't see any working option yet, TODO: find option
-    # except KeyboardInterrupt:
-    #     my_node.handle_exit()
+    except KeyboardInterrupt:
+        my_node.handle_exit()
     except Exception as e:
         print("Exception", e)
     
