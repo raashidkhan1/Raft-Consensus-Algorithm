@@ -1,3 +1,4 @@
+import socket
 import time
 import random
 import threading
@@ -12,27 +13,38 @@ class Node :
         self.node_name = name
         self.state = state
         self.port = port
-        self.heartbeat_timeout = 10
+        self.heartbeat_timeout = 1
         self.election_timeout = self.timer()
         self.term = 0
         self.run_thread = True
         self.cluster_nodes = clusterNodes
         self.heartbeat_received = False
         self.vote_count = 0
+
         # all valid states
         self.states = ["leader", "follower", "candidate"]
-        print("Node initialized")
 
-        print("Starting XMLRPC Server on node", self.node_name)
-        self.server = Server(self.node_name, self.port)
-        self.server.register_function(self.message_received, "message_received")
-        self.server.start()
-        print("XMLRPCServer started")
+       #Experiment to check if port is active for rpc server not working
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex((self.node_name,self.port))
 
+#        if result == 0:
+#            print("PORST IS OPEN")
+#            pass
+#        else:
+#            print("Node initialized")
+#            print("Starting XMLRPC Server on node", self.node_name)
+#            self.server = Server(self.node_name, self.port)
+#            self.server.register_function(self.message_received, "message_received")
+#            self.server.start()
+#            print("XMLRPCServer started")
+        sock.close()
+
+        self.send_heartbeat()
     ## basic functions
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
-        self.loop_thread = threading.Thread(target=self.node_self_loop, args=(self.state,))
+        self.loop_thread = threading.Thread(target=self.node_self_loop(), args=(self.state,))
         self.loop_thread.daemon = True # make it background
         self.loop_thread.start() ## self loop started in thread
         print("loop thread started")
@@ -48,10 +60,10 @@ class Node :
     def send_heartbeat(self):
         all_heartbeat_threads = []
         for node in self.cluster_nodes:
-            thread = threading.Thread(target=self.append_entries, args=(node, self.port,))
+            thread = threading.Thread(target=self.append_entries, args=(node['name'], node['port']))
             thread.start()
             all_heartbeat_threads.append(thread)
-        
+
         for t in all_heartbeat_threads:
             t.join()
 
@@ -59,17 +71,19 @@ class Node :
     def request_vote(self):
         pass
 
-    # timer logic for 
+    # timer logic for
     def timer(self):
         return random.randrange(100, 120)
-    
+
     # append entries RPC -- might be optional??
     def append_entries(self, node, port):
         ## just make calls to node's message_received
-        serverProxy = ServerProxy('http://'+node+':'+port)
-        response = serverProxy.message_received()
-        print(response.value+" on  "+node)
-        
+        print(node)
+        print(port)
+        serverProxy = ServerProxy('http://'+node+':'+ str(port))
+#        response = serverProxy.message_received()
+        print(serverProxy.message_received())
+
 
     def message_received(self):
         self.heartbeat_received = True
@@ -90,36 +104,36 @@ class Node :
 
     def candidate(self):
         print('Im a candidate, bro!')
-        while self.state == self.states[2]:
-            self.term +=1
-            self.vote_count +=1
-            ## TODO: call election aka request votes rpc
-            print(f'{self.node_name} wants to contest the leader election')
-            if self.vote_count == 1:
-                self.state = self.states[1]
+
+#            self.term +=1
+#            self.vote_count +=1
+#            ## TODO: call election aka request votes rpc
+#            print(f'{self.node_name} wants to contest the leader election')
+#            if self.vote_count == 1:
+#                self.state = self.states[1]
 
     def follower(self):
         print('Im a follower, bro!')
-        while self.state == self.states[1]:
-            self.heartbeat_received = False
-            time.sleep(self.election_timeout)
-            if not self.heartbeat_received:
-                # self.state = self.states[2] ##implement candidate logic first
-                pass
-                
+        self.heartbeat_received = False
+        #time.sleep(self.election_timeout)
+        if not self.heartbeat_received:
+            self.state=self.states[2]
+
 
     def node_self_loop(self, state):
-        print('inside loop thread')
-        index = self.states.index(state)
 
-        while self.run_thread:
-            if index == 0:
+       #for testing only
+        print("FROM HOST:",self.node_name)
+        for i in range(5):
+            if self.state == self.states[0]:
                 self.leader()
-            elif index == 1:
+                pass
+            elif self.state == self.states[1]:
                 self.follower()
+                print("HEre")
             else:
                 self.candidate()
-    
+
     def terminate_self_loop_thread(self):
         self.run_thread = False
         self.loop_thread.join()
@@ -135,7 +149,7 @@ class Node :
 
 
 if __name__ == '__main__':
-    print('Im a working')
+#    print('Im a working')
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--name", default=0, type=str, help='name of node like node102')
     argparser.add_argument("--port", default=8000, type=int, help="communication port for sending and listening messages")
@@ -144,13 +158,28 @@ if __name__ == '__main__':
 
     default_state = "follower"
 
-    # removing the current node from its cluster list
-    cluster = [node for node in args.clusterNodes if node != args.name]
 
-    # **experimental** incrementing the port number based on index, separate ports for separate node 
+    cluster=[]
+
+    for i,node in enumerate(args.clusterNodes):
+        data={
+             'name':node,
+             'port':args.port+ i
+
+              }
+        cluster.append(data)
+
+
+    # removing the current node from its cluster list
+    cluster = [node for node in cluster if node['name'] != args.name]
+
+    # **experimental** incrementing the port number based on index, separate ports for separate node
+
     port = args.port + args.clusterNodes.index(args.name)
+ #   print(args.name)
 
     my_node = Node(args.name, default_state, port, cluster)
+"""
     try:
         #initialze node
         print("Starting node", args.name)
@@ -162,9 +191,10 @@ if __name__ == '__main__':
         my_node.handle_exit()
     except Exception as e:
         print("Exception", e)
-    
+
             # exit handler *terminates threads and kills server
     atexit.register(my_node.handle_exit)
     signal.signal(signal.SIGTERM, my_node.handle_exit)
     signal.signal(signal.SIGINT, my_node.handle_exit)
-    
+
+"""
