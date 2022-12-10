@@ -25,8 +25,8 @@ class Node :
         self.states = ["leader", "follower", "candidate"]
 
        #Experiment to check if port is active for rpc server not working
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex((self.node_name,self.port))
+ #       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+ #       result = sock.connect_ex((self.node_name,self.port))
 
 #        if result == 0:
 #            print("PORST IS OPEN")
@@ -34,13 +34,21 @@ class Node :
 #        else:
 #            print("Node initialized")
 #            print("Starting XMLRPC Server on node", self.node_name)
-#            self.server = Server(self.node_name, self.port)
-#            self.server.register_function(self.message_received, "message_received")
-#            self.server.start()
+        self.server = Server(self.node_name, self.port)
+        self.server.register_function(self.message_received, "message_received")
+        self.server.start()
 #            print("XMLRPCServer started")
-        sock.close()
+#        sock.close()
 
-        self.send_heartbeat()
+        if self.node_name == "node107":
+            self.state="leader"
+
+        self.node_self_loop()
+
+
+
+
+
     ## basic functions
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
@@ -75,19 +83,35 @@ class Node :
     def timer(self):
         return random.randrange(100, 120)
 
-    # append entries RPC -- might be optional??
     def append_entries(self, node, port):
-        ## just make calls to node's message_received
-        print(node)
-        print(port)
-        serverProxy = ServerProxy('http://'+node+':'+ str(port))
-#        response = serverProxy.message_received()
-        print(serverProxy.message_received())
+        with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
+
+            logs=[]
+            leader= self.node_name
+
+            print("Sending heartbeat to:",node)
+
+            response = rpc_call.message_received(leader,logs)
+
+            if response:
+                print("Node,{node} recieved hearbeats")
+            else :
+                print("Did not receive")
+                return
 
 
-    def message_received(self):
+
+
+
+    def message_received(self,leader,logs):
+        print("I'm node:",self.node_name)
+        print("Message:",self.heartbeat_received)
         self.heartbeat_received = True
-        return "recieved heartbeat"
+        print("The leader is:",leader)
+        return True
+
+
+
 
     # election vote count check
     def check_election_winner(self):
@@ -98,9 +122,9 @@ class Node :
 
     def leader(self):
         print('Im a leader, bro!')
-        while self.state == self.states[0]:
-            time.sleep(self.heartbeat_timeout)
-            self.send_heartbeat()
+        self.send_heartbeat()
+#            time.sleep(self.heartbeat_timeout)
+#            self.send_heartbeat()
 
     def candidate(self):
         print('Im a candidate, bro!')
@@ -114,23 +138,25 @@ class Node :
 
     def follower(self):
         print('Im a follower, bro!')
+        print("Follower message :",self.heartbeat_received)
         self.heartbeat_received = False
         #time.sleep(self.election_timeout)
-        if not self.heartbeat_received:
-            self.state=self.states[2]
+#        if not self.heartbeat_received:
+#            self.state=self.states[2]
 
 
-    def node_self_loop(self, state):
+    def node_self_loop(self):
 
        #for testing only
         print("FROM HOST:",self.node_name)
         for i in range(5):
             if self.state == self.states[0]:
+                time.sleep(4)
                 self.leader()
                 pass
             elif self.state == self.states[1]:
+                time.sleep(4)
                 self.follower()
-                print("HEre")
             else:
                 self.candidate()
 
