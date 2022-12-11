@@ -148,7 +148,7 @@ class Node :
             t.join()
         
         ## check vote count
-        if(self.vote_count >= self.cluster_nodes.size()/2):
+        if(self.vote_count >= len(self.cluster_nodes)/2):
             print(f"{self.node_name} says: Iam the leader now bitch")
             self.state = self.states[0]
             self.vote_count = 0
