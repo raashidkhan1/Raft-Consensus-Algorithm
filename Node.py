@@ -28,31 +28,27 @@ class Node :
  #       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
  #       result = sock.connect_ex((self.node_name,self.port))
 
-#        if result == 0:
-#            print("PORST IS OPEN")
-#            pass
-#        else:
-#            print("Node initialized")
-#            print("Starting XMLRPC Server on node", self.node_name)
+
+        print("Node initialized")
+        print("Starting XMLRPC Server on node", self.node_name)
         self.server = Server(self.node_name, self.port)
         self.server.register_function(self.message_received, "message_received")
         self.server.start()
-#            print("XMLRPCServer started")
+        print("XMLRPCServer started")
 #        sock.close()
 
+        ##testing with node107 as leader
         if self.node_name == "node107":
             self.state="leader"
 
-        self.node_self_loop()
-
-
-
+        self.start_loop_thread()
+        # self.node_self_loop()
 
 
     ## basic functions
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
-        self.loop_thread = threading.Thread(target=self.node_self_loop(), args=(self.state,))
+        self.loop_thread = threading.Thread(target=self.node_self_loop())
         self.loop_thread.daemon = True # make it background
         self.loop_thread.start() ## self loop started in thread
         print("loop thread started")
@@ -99,17 +95,12 @@ class Node :
                 print("Did not receive")
                 return
 
-
-
-
-
     def message_received(self,leader,logs):
         print("I'm node:",self.node_name)
         print("Message:",self.heartbeat_received)
         self.heartbeat_received = True
         print("The leader is:",leader)
         return True
-
 
 
 
@@ -123,8 +114,6 @@ class Node :
     def leader(self):
         print('Im a leader, bro!')
         self.send_heartbeat()
-#            time.sleep(self.heartbeat_timeout)
-#            self.send_heartbeat()
 
     def candidate(self):
         print('Im a candidate, bro!')
@@ -146,14 +135,12 @@ class Node :
 
 
     def node_self_loop(self):
-
        #for testing only
         print("FROM HOST:",self.node_name)
         for i in range(5):
             if self.state == self.states[0]:
                 time.sleep(4)
                 self.leader()
-                pass
             elif self.state == self.states[1]:
                 time.sleep(4)
                 self.follower()
@@ -184,15 +171,13 @@ if __name__ == '__main__':
 
     default_state = "follower"
 
-
     cluster=[]
 
     for i,node in enumerate(args.clusterNodes):
         data={
              'name':node,
              'port':args.port+ i
-
-              }
+            }
         cluster.append(data)
 
 
@@ -203,18 +188,12 @@ if __name__ == '__main__':
 
     port = args.port + args.clusterNodes.index(args.name)
  #   print(args.name)
-
-    my_node = Node(args.name, default_state, port, cluster)
-"""
     try:
-        #initialze node
-        print("Starting node", args.name)
-        if my_node.is_valid_state():
-            my_node.start_loop_thread()
-            print("Started node", args.name)
-    # not so good way of handling it, but don't see any working option yet, TODO: find option
+        my_node = Node(args.name, default_state, port, cluster)
+
     except KeyboardInterrupt:
-        my_node.handle_exit()
+        # my_node.handle_exit()
+        pass
     except Exception as e:
         print("Exception", e)
 
@@ -222,5 +201,3 @@ if __name__ == '__main__':
     atexit.register(my_node.handle_exit)
     signal.signal(signal.SIGTERM, my_node.handle_exit)
     signal.signal(signal.SIGINT, my_node.handle_exit)
-
-"""
