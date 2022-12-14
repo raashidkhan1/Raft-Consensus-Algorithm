@@ -85,44 +85,44 @@ class Node :
             response = rpc_call.send_vote(self.term, self.node_name)
 
             if response:
-                print(f"Node, {node} sent vote", flush=True)
+                print(f"Node {node} sent vote", flush=True)
                 self.vote_count += 1.0
             else :
-                print(f"{self.node_name} says :Did not receive vote", flush=True)
+                print(f"{self.node_name} says : did not receive vote from {node}", flush=True)
                 return
 
     def send_vote(self, term, candidate_node):
-        if self.state not in [self.states[0], self.states[2]] and self.term < term:
+        if self.state == self.states[1] and self.term < term:
             print(f"{self.node_name} says: voting for {candidate_node}")
             return True
         else:
-            print(f"{self.node_name} says :Iam a candidate or your current term is low, not voting for {candidate_node}", flush=True)
+            print(f"{self.node_name} says : my state is {self.state} or your current term {term} is lower than my term {self.term}, not voting for {candidate_node}", flush=True)
             return False
 
     # timer logic for
     def timer(self):
-        return random.randrange(3, 5)
+        return random.randrange(3, 15)
 
     def append_entries(self, node, port):
         with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
 
             print(f"{self.node_name} says :Sending heartbeat to:",node)
 
-            response = rpc_call.message_received(self.term, self.node_name)
+            response_term, response_leader_node = rpc_call.message_received(self.term, self.node_name)
 
-            if response:
+            if response_term and response_leader_node:
                 print(f"Leader {self.node_name} says {node} received response on heartbeats", flush=True)
-                if(self.term < response[0]):
+                if(self.term < response_term):
                     print(f"{self.node_name} says degrading to follower", flush=True)
-                    self.term = response[0]
+                    self.term = response_term
                     self.state = self.states[1]
-                    if(self.leader_node != response[1]):
-                        self.leader_node = response[1]
+                    if(self.leader_node != response_leader_node):
+                        self.leader_node = response_leader_node
             else :
                 print(f"{self.node_name} says : did not receive response on heartbeat from {node}", flush=True)
                 return
 
-    def message_received(self, term, leader_node) -> Union[int, str]:
+    def message_received(self, term, leader_node):
         self.heartbeat_received = True
         print(f"{self.node_name} says : heartbeat received from {leader_node}")
         # reset timer
@@ -135,7 +135,7 @@ class Node :
             print(f"{self.node_name} rejecting hearbeat from : ", leader_node)
             return self.term, self.leader_node
         else:
-            return term
+            return term, self.leader_node
 
 
     ### functions for each type of node
@@ -148,6 +148,7 @@ class Node :
     def candidate(self):
         print(f"{self.node_name} says I'm a candidate man", flush=True)
         self.vote_count +=1
+        previous_term = self.term
         self.term +=1
         all_request_threads = []
 
@@ -172,14 +173,13 @@ class Node :
         else:
             print(f"{self.node_name} says: failed to collect votes, becoming follower again", flush=True)
             self.state = self.states[1]
+            self.term = previous_term
             self.vote_count = 0
 
     def follower(self):
         print(f"{self.node_name} says I'm a follower man", flush=True)
         self.heartbeat_received = False
         time.sleep(self.election_timeout)
-        ## TODO: check leader term and sync own term
-
         print(f"{self.node_name} says : heartbeat :", self.heartbeat_received)
         if not self.heartbeat_received:
            self.state=self.states[2]
