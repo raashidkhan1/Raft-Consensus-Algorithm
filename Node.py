@@ -29,13 +29,13 @@ class Node :
  #       result = sock.connect_ex((self.node_name,self.port))
 
 
-        print("Node initialized")
-        print("Starting XMLRPC Server on node", self.node_name)
+        print(f"{self.node_name} says :Node initialized", flush=True)
+        print(f"{self.node_name} says :Starting XMLRPC Server on node", self.node_name)
         self.server = Server(self.node_name, self.port)
-        self.server.register_function(self.message_received, "message_received")
-        self.server.register_function(self.send_vote, "send_vote")
+        self.server.register_function(self.message_received, "message_received", flush=True)
+        self.server.register_function(self.send_vote, "send_vote", flush=True)
         self.server.start()
-        print("XMLRPCServer started")
+        print(f"{self.node_name} says :XMLRPCServer started", flush=True)
 #        sock.close()
 
         ##testing with node107 as leader
@@ -53,7 +53,7 @@ class Node :
             self.loop_thread = threading.Thread(target=self.node_self_loop())
             self.loop_thread.daemon = True # make it background
             self.loop_thread.start() ## self loop started in thread
-            print("loop thread started")
+            print(f"{self.node_name} says :loop thread started", flush=True)
             while self.loop_thread.is_alive():
                 self.loop_thread.join(1)
         except KeyboardInterrupt:
@@ -79,22 +79,22 @@ class Node :
     def request_vote(self, node, port):
         with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
 
-            print("requesting vote from:", node)
+            print(f"{self.node_name} says :requesting vote from:", node)
 
             response = rpc_call.send_vote(self.term)
 
             if response:
-                print(f"Node, {node} sent vote")
+                print(f"Node, {node} sent vote", flush=True)
                 self.vote_count += 1
             else :
-                print("Did not receive vote")
+                print(f"{self.node_name} says :Did not receive vote", flush=True)
                 return
 
     def send_vote(self, term):
         if self.state != self.states[2] and self.term < term:
             return True
         else:
-            print("Iam a candidate or your current term is low, no voting")
+            print(f"{self.node_name} says :Iam a candidate or your current term is low, no voting", flush=True)
             return False
 
     # timer logic for
@@ -104,26 +104,28 @@ class Node :
     def append_entries(self, node, port):
         with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
 
-            print("Sending heartbeat to:",node)
+            print(f"{self.node_name} says :Sending heartbeat to:",node)
 
             response = rpc_call.message_received(self.term, self.node_name)
 
             if response:
-                print(f"Node, {node} received hearbeats")
+                print(f"Node, {node} received hearbeats", flush=True)
                 if(self.term < response):
-                    print(f"{self.node_name} says degrading to follower")
+                    print(f"{self.node_name} says degrading to follower", flush=True)
                     self.term = response
                     self.state = self.states[1]
                     
             else :
-                print("Did not receive")
+                print(f"{self.node_name} says :Did not receive", flush=True)
                 return
 
     def message_received(self, term, leader_node):
-        print("I'm node:", self.node_name)
         self.heartbeat_received = True
+        print(f"{self.node_name} says :I'm node:", self.node_name)
+        # reset timer
+        self.election_timeout = self.timer()
         if self.term < term: 
-            self.term = term
+            self.term = term            
             return term
         elif self.term > term:
             print(f"{self.node_name} rejecting your hearbeat: ", leader_node)
@@ -135,11 +137,11 @@ class Node :
     ### functions for each type of node
 
     def leader(self):
-        print('Im a leader, bro!')
+        print(f"{self.node_name} says I'm a leader man", flush=True)
         self.send_heartbeat()
 
     def candidate(self):
-        print('Im a candidate, bro!')
+        print(f"{self.node_name} says I'm a candidate man", flush=True)
         self.vote_count +=1
         self.term +=1
         all_request_threads = []
@@ -154,35 +156,35 @@ class Node :
         
         ## check vote count
         if(self.vote_count >= len(self.cluster_nodes)/2):
-            print(f"{self.node_name} says: Iam the leader now bitch")
+            print(f"{self.node_name} says: Iam the leader now bitch", flush=True)
             self.state = self.states[0]
             self.vote_count = 0
         else:
-            print(f"{self.node_name} says: failed to collect votes, becoming follower again")
+            print(f"{self.node_name} says: failed to collect votes, becoming follower again", flush=True)
             self.state = self.states[1]
             self.vote_count = 0
 
     def follower(self):
-        print('Im a follower, bro!')
+        print(f"{self.node_name} says I'm a follower man", flush=True)
         self.heartbeat_received = False
         time.sleep(self.election_timeout)
         ## TODO: check leader term and sync own term
 
-        print("Follower says heartbeat :", self.heartbeat_received)
+        print(f"{self.node_name} says :Follower says heartbeat :", self.heartbeat_received)
         if not self.heartbeat_received:
            self.state=self.states[2]
 
 
     def node_self_loop(self):
        #for testing only
-        print("FROM HOST:",self.node_name)
+        print(f"{self.node_name} says starting my self loop")
         # while(self.run_thread):
         for i in range(5):
             if self.state == self.states[0]:
-                time.sleep(4)
+                time.sleep(1)
                 self.leader()
             elif self.state == self.states[1]:
-                time.sleep(4)
+                time.sleep(1)
                 self.follower()
             else:
                 self.candidate()
@@ -196,17 +198,17 @@ class Node :
             self.terminate_self_loop_thread()
             self.server.stop_server()
             self.server.join()
-            print("Node stopped", args.name)
+            print(f"{self.node_name} says :Node stopped", args.name)
         except Exception as e:
-            print("Couldn't handle exit! error: ", e)
+            print(f"{self.node_name} says :Couldn't handle exit! error: ", e)
 
 
 if __name__ == '__main__':
 #    print('Im a working')
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--name", default=0, type=str, help='name of node like node102')
-    argparser.add_argument("--port", default=8000, type=int, help="communication port for sending and listening messages")
-    argparser.add_argument("--clusterNodes", nargs='+', default=[], type=str, help="nodes in the reserved cluster like node102 node103 node104")
+    argparser.add_argument("--port", default=8000, type=int, help='communication port for sending and listening messages')
+    argparser.add_argument("--clusterNodes", nargs='+', default=[], type=str, help='nodes in the reserved cluster like node102 node103 node104')
     args = argparser.parse_args()
 
     default_state = "follower"
@@ -230,7 +232,7 @@ if __name__ == '__main__':
  #   print(args.name)
     my_node = Node(args.name, default_state, port, cluster)
     try:
-        print(f"Node {args.name} is starting")
+        print(f"Node {args.name} is starting", flush=True)
         my_node.start_loop_thread()
     except Exception as e:
         print("Exception", e)

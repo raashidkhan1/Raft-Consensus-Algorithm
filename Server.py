@@ -5,7 +5,7 @@ class Server(Thread):
     def __init__(self, node_name, port) -> None:
         super().__init__()
         self.server = SimpleXMLRPCServer((node_name, port))
-        self.daemon = True
+        # self.daemon = True
 
     def run(self) -> None:
         self.server.serve_forever()
