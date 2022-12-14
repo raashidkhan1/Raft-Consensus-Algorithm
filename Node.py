@@ -7,6 +7,7 @@ from xmlrpc.client import ServerProxy
 from Server import Server
 import atexit
 import signal
+from typing import Union
 class Node :
 
     def __init__(self, name, state, port, clusterNodes):
@@ -81,7 +82,7 @@ class Node :
 
             print(f"{self.node_name} says :requesting vote from:", node)
 
-            response = rpc_call.send_vote(self.term)
+            response = rpc_call.send_vote(self.term, self.node_name)
 
             if response:
                 print(f"Node, {node} sent vote", flush=True)
@@ -90,11 +91,12 @@ class Node :
                 print(f"{self.node_name} says :Did not receive vote", flush=True)
                 return
 
-    def send_vote(self, term):
+    def send_vote(self, term, candidate_node):
         if self.state not in [self.states[0], self.states[2]] and self.term < term:
+            print(f"{self.node_name} says: voting for {candidate_node}")
             return True
         else:
-            print(f"{self.node_name} says :Iam a candidate or your current term is low, no voting", flush=True)
+            print(f"{self.node_name} says :Iam a candidate or your current term is low, not voting for {candidate_node}", flush=True)
             return False
 
     # timer logic for
@@ -120,7 +122,7 @@ class Node :
                 print(f"{self.node_name} says : did not receive response on heartbeat from {node}", flush=True)
                 return
 
-    def message_received(self, term, leader_node):
+    def message_received(self, term, leader_node) -> Union[int, str]:
         self.heartbeat_received = True
         print(f"{self.node_name} says : heartbeat received from {leader_node}")
         # reset timer
@@ -160,7 +162,7 @@ class Node :
         for t in all_request_threads:
             t.join()
         
-        min_vote = 0.5 * (float(len(self.cluster_nodes))+1.0)
+        min_vote = float(0.5 * float(len(self.cluster_nodes))) + 1.0
 
         ## check vote count
         if self.vote_count > min_vote:
