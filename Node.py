@@ -50,10 +50,10 @@ class Node :
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
         try:
+            print(f"{self.node_name} says :loop thread started", flush=True)
             self.loop_thread = threading.Thread(target=self.node_self_loop())
             self.loop_thread.daemon = True # make it background
             self.loop_thread.start() ## self loop started in thread
-            print(f"{self.node_name} says :loop thread started", flush=True)
             while self.loop_thread.is_alive():
                 self.loop_thread.join(1)
         except KeyboardInterrupt:
@@ -91,7 +91,7 @@ class Node :
                 return
 
     def send_vote(self, term):
-        if self.state != self.states[2] and self.term < term:
+        if self.state not in [self.states[0], self.states[2]] and self.term < term:
             return True
         else:
             print(f"{self.node_name} says :Iam a candidate or your current term is low, no voting", flush=True)
@@ -99,7 +99,7 @@ class Node :
 
     # timer logic for
     def timer(self):
-        return random.randrange(1, 5)
+        return random.randrange(3, 5)
 
     def append_entries(self, node, port):
         with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
@@ -109,7 +109,7 @@ class Node :
             response = rpc_call.message_received(self.term, self.node_name)
 
             if response:
-                print(f"Node, {node} received hearbeats", flush=True)
+                print(f"Leader {self.node_name} says {node} received response on heartbeats", flush=True)
                 if(self.term < response):
                     print(f"{self.node_name} says degrading to follower", flush=True)
                     self.term = response
@@ -121,7 +121,7 @@ class Node :
 
     def message_received(self, term, leader_node):
         self.heartbeat_received = True
-        print(f"{self.node_name} says :I'm node:", self.node_name)
+        print(f"{self.node_name} says : heartbeat received from {leader_node}")
         # reset timer
         self.election_timeout = self.timer()
         if self.term < term: 
@@ -138,6 +138,7 @@ class Node :
 
     def leader(self):
         print(f"{self.node_name} says I'm a leader man", flush=True)
+        time.sleep(random.randrange(1,2))
         self.send_heartbeat()
 
     def candidate(self):
@@ -172,7 +173,7 @@ class Node :
         time.sleep(self.election_timeout)
         ## TODO: check leader term and sync own term
 
-        print(f"{self.node_name} says :Follower says heartbeat :", self.heartbeat_received)
+        print(f"{self.node_name} says : heartbeat :", self.heartbeat_received)
         if not self.heartbeat_received:
            self.state=self.states[2]
 
@@ -183,10 +184,8 @@ class Node :
         # while(self.run_thread):
         for i in range(5):
             if self.state == self.states[0]:
-                time.sleep(1)
                 self.leader()
             elif self.state == self.states[1]:
-                time.sleep(1)
                 self.follower()
             else:
                 self.candidate()
