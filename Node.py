@@ -1,4 +1,3 @@
-import socket
 import time
 import random
 import threading
@@ -7,7 +6,8 @@ from xmlrpc.client import ServerProxy
 from Server import Server
 import atexit
 import signal
-from typing import Union
+
+##TODO : clean code and reorganize
 class Node :
 
     def __init__(self, name, state, port, clusterNodes):
@@ -25,11 +25,6 @@ class Node :
         # all valid states
         self.states = ["leader", "follower", "candidate"]
 
-       #Experiment to check if port is active for rpc server not working
- #       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
- #       result = sock.connect_ex((self.node_name,self.port))
-
-
         print(f"{self.node_name} says :Node initialized", flush=True)
         print(f"{self.node_name} says :Starting XMLRPC Server on node", self.node_name)
         self.server = Server(self.node_name, self.port)
@@ -37,14 +32,6 @@ class Node :
         self.server.register_function(self.send_vote, "send_vote")
         self.server.start()
         print(f"{self.node_name} says :XMLRPCServer started", flush=True)
-#        sock.close()
-
-        ##testing with node107 as leader
-        # if self.node_name == "node107":
-        #     self.state="leader"
-
-        ## controlling explicitly from main to catch exceptions
-        # self.start_loop_thread()
 
 
     ## basic functions
