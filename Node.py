@@ -40,19 +40,18 @@ class Node :
 #            print("XMLRPCServer started")
 #        sock.close()
 
-        if self.node_name == "node107":
-            self.state="leader"
+#        if self.node_name == "node107":
+#            self.state="leader"
+#            self.term +=1
 
-        self.node_self_loop()
+        self.start_loop_thread()
 
-
-
-
+        self.server.stop_server()
 
     ## basic functions
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
-        self.loop_thread = threading.Thread(target=self.node_self_loop(), args=(self.state,))
+        self.loop_thread = threading.Thread(target=self.node_self_loop())
         self.loop_thread.daemon = True # make it background
         self.loop_thread.start() ## self loop started in thread
         print("loop thread started")
@@ -88,13 +87,19 @@ class Node :
 
             logs=[]
             leader= self.node_name
-
+            sender_term=self.term
             print("Sending heartbeat to:",node)
 
-            response = rpc_call.message_received(leader,logs)
+            response = rpc_call.message_received(leader,logs,sender_term)
+
+            if self.term < response:
+                self.term = response
+                self.state = self.states[1]
+                print("Node "+node+"recieved hearbeats but I'm not supposed to be the leader")
+                quit()
 
             if response:
-                print("Node,{node} recieved hearbeats")
+                print("Message received to node ",node)
             else :
                 print("Did not receive")
                 return
@@ -103,12 +108,15 @@ class Node :
 
 
 
-    def message_received(self,leader,logs):
-        print("I'm node:",self.node_name)
-        print("Message:",self.heartbeat_received)
+    def message_received(self,leader,logs,sender_term):
         self.heartbeat_received = True
-        print("The leader is:",leader)
-        return True
+        if self.term < sender_term:
+            self.term=sender_term
+            return self.term
+        elif self.term > sender_term:
+            return self.term
+        else :
+            return self.term
 
 
 
@@ -122,6 +130,7 @@ class Node :
 
     def leader(self):
         print('Im a leader, bro!')
+        time.sleep(2)
         self.send_heartbeat()
 #            time.sleep(self.heartbeat_timeout)
 #            self.send_heartbeat()
@@ -138,24 +147,29 @@ class Node :
 
     def follower(self):
         print('Im a follower, bro!')
-        print("Follower message :",self.heartbeat_received)
         self.heartbeat_received = False
+        print("Follower before timeout message :",self.heartbeat_received)
+        time.sleep(4)
+        print("Followe term ",self.term)
+        print("Follower after timeout message :",self.heartbeat_received)
         #time.sleep(self.election_timeout)
-#        if not self.heartbeat_received:
+        if not self.heartbeat_received:
 #            self.state=self.states[2]
-
+            print("I'm a candidate")
 
     def node_self_loop(self):
 
        #for testing only
         print("FROM HOST:",self.node_name)
         for i in range(5):
+
+#            if i == 2 and self.node_name=="node108":
+#                self.state= self.states[0]
+#                self.term +=1
+
             if self.state == self.states[0]:
-                time.sleep(4)
                 self.leader()
-                pass
             elif self.state == self.states[1]:
-                time.sleep(4)
                 self.follower()
             else:
                 self.candidate()
