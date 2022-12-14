@@ -242,6 +242,8 @@ if __name__ == '__main__':
     try:
         print(f"Node {args.name} is starting", flush=True)
         my_node.start_loop_thread()
+        ## experimental handle exit -- stop server
+        my_node.handle_exit()
     except Exception as e:
         print("Exception", e)
 
