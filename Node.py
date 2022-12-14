@@ -20,7 +20,7 @@ class Node :
         self.cluster_nodes = clusterNodes
         self.heartbeat_received = False
         self.vote_count = float(0)
-
+        self.leader_node = ""
         # all valid states
         self.states = ["leader", "follower", "candidate"]
 
@@ -110,13 +110,14 @@ class Node :
 
             if response:
                 print(f"Leader {self.node_name} says {node} received response on heartbeats", flush=True)
-                if(self.term < response):
+                if(self.term < response[0]):
                     print(f"{self.node_name} says degrading to follower", flush=True)
-                    self.term = response
+                    self.term = response[0]
                     self.state = self.states[1]
-                    
+                    if(self.leader_node != response[1]):
+                        self.leader_node = response[1]
             else :
-                print(f"{self.node_name} says :Did not receive", flush=True)
+                print(f"{self.node_name} says : did not receive response on heartbeat from {node}", flush=True)
                 return
 
     def message_received(self, term, leader_node):
@@ -124,12 +125,13 @@ class Node :
         print(f"{self.node_name} says : heartbeat received from {leader_node}")
         # reset timer
         self.election_timeout = self.timer()
-        if self.term < term: 
-            self.term = term            
-            return term
+        if self.term < term and self.leader_node != leader_node: 
+            self.term = term
+            self.leader_node = leader_node            
+            return term, self.leader_node
         elif self.term > term:
-            print(f"{self.node_name} rejecting your hearbeat: ", leader_node)
-            return self.term
+            print(f"{self.node_name} rejecting hearbeat from : ", leader_node)
+            return self.term, self.leader_node
         else:
             return term
 
@@ -147,6 +149,9 @@ class Node :
         self.term +=1
         all_request_threads = []
 
+        # reset timer to not initiate another election
+        self.election_timeout = self.timer()
+
         for node in self.cluster_nodes:
             thread = threading.Thread(target=self.request_vote, args=(node['name'], node['port']))
             thread.start()
@@ -158,7 +163,7 @@ class Node :
         min_vote = 0.5 * (float(len(self.cluster_nodes))+1.0)
 
         ## check vote count
-        if self.vote_count >= min_vote:
+        if self.vote_count > min_vote:
             print(f"{self.node_name} says: Iam the leader now bitch", flush=True)
             self.state = self.states[0]
             self.vote_count = 0
