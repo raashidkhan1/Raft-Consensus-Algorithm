@@ -188,8 +188,8 @@ class Node :
     def node_self_loop(self):
        #for testing only
         print(f"{self.node_name} says starting my self loop")
-        # while(self.run_thread):
-        for i in range(5):
+        while(self.run_thread):
+        # for i in range(5):
             if self.state == self.states[0]:
                 self.leader()
             elif self.state == self.states[1]:
@@ -243,7 +243,7 @@ if __name__ == '__main__':
         print(f"Node {args.name} is starting", flush=True)
         my_node.start_loop_thread()
         ## experimental handle exit -- stop server
-        my_node.handle_exit()
+        # my_node.handle_exit()
     except Exception as e:
         print("Exception", e)
 
