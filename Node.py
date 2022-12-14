@@ -19,7 +19,7 @@ class Node :
         self.run_thread = True
         self.cluster_nodes = clusterNodes
         self.heartbeat_received = False
-        self.vote_count = 0
+        self.vote_count = float(0)
 
         # all valid states
         self.states = ["leader", "follower", "candidate"]
@@ -85,7 +85,7 @@ class Node :
 
             if response:
                 print(f"Node, {node} sent vote", flush=True)
-                self.vote_count += 1
+                self.vote_count += 1.0
             else :
                 print(f"{self.node_name} says :Did not receive vote", flush=True)
                 return
@@ -154,8 +154,10 @@ class Node :
         for t in all_request_threads:
             t.join()
         
+        min_vote = 0.5 * (float(len(self.cluster_nodes))+1.0)
+
         ## check vote count
-        if(self.vote_count >= len(self.cluster_nodes)/2):
+        if self.vote_count >= min_vote:
             print(f"{self.node_name} says: Iam the leader now bitch", flush=True)
             self.state = self.states[0]
             self.vote_count = 0
