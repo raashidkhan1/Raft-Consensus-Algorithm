@@ -42,18 +42,22 @@ class Node :
         # if self.node_name == "node107":
         #     self.state="leader"
 
-        self.start_loop_thread()
+        ## controlling explicitly from main to catch exceptions
+        # self.start_loop_thread()
 
 
     ## basic functions
     def start_loop_thread(self):
         # infinite loops require a separate thread from main
-        self.loop_thread = threading.Thread(target=self.node_self_loop())
-        self.loop_thread.daemon = True # make it background
-        self.loop_thread.start() ## self loop started in thread
-        print("loop thread started")
-        while self.loop_thread.is_alive():
-            self.loop_thread.join(1)
+        try:
+            self.loop_thread = threading.Thread(target=self.node_self_loop())
+            self.loop_thread.daemon = True # make it background
+            self.loop_thread.start() ## self loop started in thread
+            print("loop thread started")
+            while self.loop_thread.is_alive():
+                self.loop_thread.join(1)
+        except KeyboardInterrupt:
+            self.handle_exit()
 
     def is_valid_state(self):
         if self.state in self.states:
@@ -86,6 +90,13 @@ class Node :
                 print("Did not receive vote")
                 return
 
+    def send_vote(self, term):
+        if self.state != self.states[2] and self.term < term:
+            return True
+        else:
+            print("Iam a candidate or your current term is low, no voting")
+            return False
+
     # timer logic for
     def timer(self):
         return random.randrange(1, 5)
@@ -95,11 +106,12 @@ class Node :
 
             print("Sending heartbeat to:",node)
 
-            response = rpc_call.message_received(self.term)
+            response = rpc_call.message_received(self.term, self.node_name)
 
             if response:
                 print(f"Node, {node} received hearbeats")
                 if(self.term < response):
+                    print(f"{self.node_name} says degrading to follower")
                     self.term = response
                     self.state = self.states[1]
                     
@@ -107,21 +119,14 @@ class Node :
                 print("Did not receive")
                 return
 
-    def send_vote(self, term):
-        if self.state != self.states[2] and self.term < term:
-            return True
-        else:
-            print("Iam a candidate or your current term is low, no voting")
-            return False
-
-    def message_received(self, term):
+    def message_received(self, term, leader_node):
         print("I'm node:", self.node_name)
-        print("heartbeat received:", self.heartbeat_received)
         self.heartbeat_received = True
         if self.term < term: 
             self.term = term
             return term
         elif self.term > term:
+            print(f"{self.node_name} rejecting your hearbeat: ", leader_node)
             return self.term
         else:
             return term
@@ -159,11 +164,11 @@ class Node :
 
     def follower(self):
         print('Im a follower, bro!')
-        print("Follower message :", self.heartbeat_received)
         self.heartbeat_received = False
         time.sleep(self.election_timeout)
-        ## check leader term and sync own term
+        ## TODO: check leader term and sync own term
 
+        print("Follower says heartbeat :", self.heartbeat_received)
         if not self.heartbeat_received:
            self.state=self.states[2]
 
@@ -171,6 +176,7 @@ class Node :
     def node_self_loop(self):
        #for testing only
         print("FROM HOST:",self.node_name)
+        # while(self.run_thread):
         for i in range(5):
             if self.state == self.states[0]:
                 time.sleep(4)
@@ -222,12 +228,10 @@ if __name__ == '__main__':
 
     port = args.port + args.clusterNodes.index(args.name)
  #   print(args.name)
+    my_node = Node(args.name, default_state, port, cluster)
     try:
-        my_node = Node(args.name, default_state, port, cluster)
-
-    except KeyboardInterrupt:
-        # my_node.handle_exit()
-        pass
+        print(f"Node {args.name} is starting")
+        my_node.start_loop_thread()
     except Exception as e:
         print("Exception", e)
 
