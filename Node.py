@@ -21,6 +21,7 @@ class Node :
         self.cluster_nodes = clusterNodes
         self.heartbeat_received = False
         self.vote_count = float(0)
+        self.voted_for = None
         self.leader_node = ""
         # all valid states
         self.states = ["leader", "follower", "candidate"]
@@ -67,7 +68,7 @@ class Node :
     def request_vote(self, node, port):
         with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
 
-            print(f"{self.node_name} says :requesting vote from:", node)
+            print(f"{self.node_name} says :requesting vote from:", node, flush=True)
 
             response = rpc_call.send_vote(self.term, self.node_name)
 
@@ -79,16 +80,23 @@ class Node :
                 return
 
     def send_vote(self, term, candidate_node):
-        if self.state == self.states[1] and self.term < term:
-            print(f"{self.node_name} says: voting for {candidate_node}")
+        if self.state == self.states[1] and self.term < term and self.voted_for == None:
+            print(f"{self.node_name} says: voting for {candidate_node}", flush=True)
+            self.voted_for = candidate_node
             return True
+        elif self.state == self.states[2]:
+            print(f"{self.node_name} says : my state is {self.state}, not voting :P ", flush=True)
+            return False
+        elif self.voted_for != None:
+            print(f"{self.node_name} says : Already voted for {self.voted_for}", flush=True)
+            return False
         else:
-            print(f"{self.node_name} says : my state is {self.state} or your current term {term} is lower than my term {self.term}, not voting for {candidate_node}", flush=True)
+            print(f"{self.node_name} says : your current term {term} is lower than my term {self.term}, not voting for {candidate_node}", flush=True)
             return False
 
     # timer logic for
     def timer(self):
-        return random.randrange(3, 15)
+        return random.randrange(3, 8)
 
     def append_entries(self, node, port):
         with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
@@ -111,15 +119,22 @@ class Node :
 
     def message_received(self, term, leader_node):
         self.heartbeat_received = True
-        print(f"{self.node_name} says : heartbeat received from {leader_node}")
+        print(f"{self.node_name} says : heartbeat received from {leader_node}", flush=True)
         # reset timer
         self.election_timeout = self.timer()
-        if self.term < term and self.leader_node != leader_node: 
+
+        if self.state == self.states[2] and self.leader_node != leader_node:
+            print(f"{self.node_name} says degrading to follower", flush=True)
+            self.state = self.states[1]
+            self.leader_node = leader_node
+            self.term = term
+            return term, self.leader_node
+        elif self.term < term: 
             self.term = term
             self.leader_node = leader_node            
             return term, self.leader_node
         elif self.term > term:
-            print(f"{self.node_name} rejecting hearbeat from : ", leader_node)
+            print(f"{self.node_name} rejecting hearbeat from : ", leader_node, flush=True)
             return self.term, self.leader_node
         else:
             return term, self.leader_node
@@ -138,7 +153,7 @@ class Node :
         previous_term = self.term
         self.term +=1
         all_request_threads = []
-
+        self.voted_for = self.node_name
         # reset timer to not initiate another election
         self.election_timeout = self.timer()
 
@@ -150,7 +165,7 @@ class Node :
         for t in all_request_threads:
             t.join()
         
-        min_vote = float(0.5 * float(len(self.cluster_nodes))) + 1.0
+        min_vote = float(0.5 * float(len(self.cluster_nodes)+1))
 
         ## check vote count
         if self.vote_count > min_vote:
@@ -161,6 +176,7 @@ class Node :
             print(f"{self.node_name} says: failed to collect votes, becoming follower again", flush=True)
             self.state = self.states[1]
             self.term = previous_term
+            self.voted_for = None
             self.vote_count = 0
 
     def follower(self):
@@ -175,10 +191,14 @@ class Node :
     def node_self_loop(self):
        #for testing only
         print(f"{self.node_name} says starting my self loop")
+        count = 0
         while(self.run_thread):
         # for i in range(5):
             if self.state == self.states[0]:
+                count +=1
                 self.leader()
+                if(count == 5):
+                    time.sleep(20)
             elif self.state == self.states[1]:
                 self.follower()
             else:
@@ -193,9 +213,9 @@ class Node :
             self.terminate_self_loop_thread()
             self.server.stop_server()
             self.server.join()
-            print(f"{self.node_name} says :Node stopped", args.name)
+            print(f"{self.node_name} says: Node stopped", args.name)
         except Exception as e:
-            print(f"{self.node_name} says :Couldn't handle exit! error: ", e)
+            print(f"{self.node_name} says: Couldn't handle exit! error: ", e)
 
 
 if __name__ == '__main__':
