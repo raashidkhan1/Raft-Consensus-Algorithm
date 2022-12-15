@@ -27,7 +27,7 @@ class Node :
         self.states = ["leader", "follower", "candidate"]
 
         print(f"{self.node_name} says :Node initialized", flush=True)
-        print(f"{self.node_name} says :Starting XMLRPC Server on node", self.node_name)
+        print(f"{self.node_name} says :Starting XMLRPC Server on node", self.node_name, flush=True)
         self.server = Server(self.node_name, self.port)
         self.server.register_function(self.message_received, "message_received")
         self.server.register_function(self.send_vote, "send_vote")
@@ -101,14 +101,14 @@ class Node :
     def append_entries(self, node, port):
         with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
 
-            print(f"{self.node_name} says :Sending heartbeat to:",node)
+            print(f"{self.node_name} says :Sending heartbeat to:",node, flush=True)
 
             response_term, response_leader_node = rpc_call.message_received(self.term, self.node_name)
 
             if response_term and response_leader_node:
                 print(f"Leader {self.node_name} says {node} received response on heartbeats", flush=True)
                 if(self.term < response_term):
-                    print(f"{self.node_name} says degrading to follower", flush=True)
+                    print(f"{self.node_name} says: I'm old leader, degrading to follower", flush=True)
                     self.term = response_term
                     self.state = self.states[1]
                     if(self.leader_node != response_leader_node):
@@ -123,20 +123,24 @@ class Node :
         # reset timer
         self.election_timeout = self.timer()
 
+        self.voted_for = None
+
         if self.state == self.states[2] and self.leader_node != leader_node:
-            print(f"{self.node_name} says degrading to follower", flush=True)
+            print(f"{self.node_name} says: I was candidate, but leader {leader_node} is elected so degrading to follower", flush=True)
             self.state = self.states[1]
             self.leader_node = leader_node
             self.term = term
             return term, self.leader_node
         elif self.term < term: 
             self.term = term
-            self.leader_node = leader_node            
+            self.leader_node = leader_node
+            print(f"{self.node_name} says: update my own term from new leader {leader_node}", flush=True)            
             return term, self.leader_node
         elif self.term > term:
             print(f"{self.node_name} rejecting hearbeat from : ", leader_node, flush=True)
             return self.term, self.leader_node
         else:
+            print(f"{self.node_name} says: I'm in sync with {leader_node}", flush=True)
             return term, self.leader_node
 
 
@@ -156,6 +160,7 @@ class Node :
         self.voted_for = self.node_name
         # reset timer to not initiate another election
         self.election_timeout = self.timer()
+        
 
         for node in self.cluster_nodes:
             thread = threading.Thread(target=self.request_vote, args=(node['name'], node['port']))
@@ -172,6 +177,8 @@ class Node :
             print(f"{self.node_name} says: Iam the leader now bitch", flush=True)
             self.state = self.states[0]
             self.vote_count = 0
+            self.voted_for = None
+            self.leader_node = self.node_name
         else:
             print(f"{self.node_name} says: failed to collect votes, becoming follower again", flush=True)
             self.state = self.states[1]
@@ -183,22 +190,22 @@ class Node :
         print(f"{self.node_name} says I'm a follower man", flush=True)
         self.heartbeat_received = False
         time.sleep(self.election_timeout)
-        print(f"{self.node_name} says : heartbeat :", self.heartbeat_received)
+        print(f"{self.node_name} says : heartbeat :", self.heartbeat_received, flush=True)
         if not self.heartbeat_received:
            self.state=self.states[2]
 
 
     def node_self_loop(self):
        #for testing only
-        print(f"{self.node_name} says starting my self loop")
+        print(f"{self.node_name} says starting my self loop", flush=True)
         count = 0
-        while(self.run_thread):
-        # for i in range(5):
+        # while(self.run_thread):
+        for i in range(5):
+            count +=1
             if self.state == self.states[0]:
-                count +=1
-                self.leader()
                 if(count == 5):
                     time.sleep(20)
+                self.leader()
             elif self.state == self.states[1]:
                 self.follower()
             else:
@@ -213,13 +220,12 @@ class Node :
             self.terminate_self_loop_thread()
             self.server.stop_server()
             self.server.join()
-            print(f"{self.node_name} says: Node stopped", args.name)
+            print(f"{self.node_name} says: Node stopped", args.name, flush=True)
         except Exception as e:
-            print(f"{self.node_name} says: Couldn't handle exit! error: ", e)
+            print(f"{self.node_name} says: Couldn't handle exit! error: ", e, flush=True)
 
 
 if __name__ == '__main__':
-#    print('Im a working')
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--name", default=0, type=str, help='name of node like node102')
     argparser.add_argument("--port", default=8000, type=int, help='communication port for sending and listening messages')
@@ -244,7 +250,6 @@ if __name__ == '__main__':
     # **experimental** incrementing the port number based on index, separate ports for separate node
 
     port = args.port + args.clusterNodes.index(args.name)
- #   print(args.name)
     my_node = Node(args.name, default_state, port, cluster)
     try:
         print(f"Node {args.name} is starting", flush=True)
@@ -252,7 +257,7 @@ if __name__ == '__main__':
         ## experimental handle exit -- stop server
         # my_node.handle_exit()
     except Exception as e:
-        print("Exception", e)
+        print("Exception", e, flush=True)
 
     # exit handler *terminates threads and kills server
     atexit.register(my_node.handle_exit)
