@@ -6,8 +6,6 @@ from xmlrpc.client import ServerProxy
 from Server import Server
 import atexit
 import signal
-
-##TODO : clean code and reorganize
 class Node :
 
     def __init__(self, name, state, port, clusterNodes):
@@ -80,6 +78,7 @@ class Node :
                 print(f"{self.node_name} says: did not receive vote from {node}", flush=True)
                 return
 
+    # individual node voting function
     def send_vote(self, term, candidate_node):
         ## Follower with term less than candidate and not voted yet
         if self.state == self.states[1] and self.term < term and self.voted_for == None:
@@ -107,25 +106,29 @@ class Node :
     def timer(self):
         return random.randrange(3, 8)
 
+    # placeholder function for heartbeats, does not actually append entries/log replication
     def append_entries(self, node, port):
         with ServerProxy ('http://'+node+':'+ str(port)) as rpc_call:
+            try:
+                print(f"{self.node_name} says: Sending heartbeat to:",node, flush=True)
+                
+                response_term, response_leader_node = rpc_call.message_received(self.term, self.node_name)
 
-            print(f"{self.node_name} says: Sending heartbeat to:",node, flush=True)
+                if response_term and response_leader_node:
+                    print(f"Leader {self.node_name} says: received response on heartbeats from {node} ", flush=True)
+                    if(self.term < response_term):
+                        print(f"{self.node_name} says: I'm old leader, becoming follower", flush=True)
+                        self.term = response_term
+                        self.state = self.states[1]
+                        if(self.leader_node != response_leader_node):
+                            self.leader_node = response_leader_node
+                else :
+                    print(f"{self.node_name} says: did not receive response on heartbeat from {node}", flush=True)
+                    return
+            except Exception as e:
+                print("RPC call failed", flush=True)
 
-            response_term, response_leader_node = rpc_call.message_received(self.term, self.node_name)
-
-            if response_term and response_leader_node:
-                print(f"Leader {self.node_name} says: received response on heartbeats from {node} ", flush=True)
-                if(self.term < response_term):
-                    print(f"{self.node_name} says: I'm old leader, becoming follower", flush=True)
-                    self.term = response_term
-                    self.state = self.states[1]
-                    if(self.leader_node != response_leader_node):
-                        self.leader_node = response_leader_node
-            else :
-                print(f"{self.node_name} says: did not receive response on heartbeat from {node}", flush=True)
-                return
-
+    # received heartbeat evaluator
     def message_received(self, term, leader_node):
         self.heartbeat_received = True
         print(f"{self.node_name} says: heartbeat received from {leader_node}", flush=True)
@@ -138,6 +141,7 @@ class Node :
 
         return response_term, response_leader_node
 
+    # utility for heartbeat evaluator
     def respond_on_heartbeat(self, term, leader_node):
         ## candidate gets out of election if heartbeat received
         if self.state == self.states[2] and self.leader_node != leader_node :
@@ -225,20 +229,20 @@ class Node :
 
 
     def node_self_loop(self):
-       #for testing only
         print(f"{self.node_name} says: starting my self loop", flush=True)
         count = 0
-        # while(self.run_thread):
-        for i in range(10):
-            count +=1
+        while(self.run_thread):
+        #for testing limited iterations only
+        # for i in range(20):
+            # count +=1
             if self.state == self.states[0]:
-                if(count == 5):
+                # if(count == 5):
                     ## for testing leader breakdown
-                    print(f"{self.node_name} is going offline", flush=True)
-                    self.online = False
-                    time.sleep(20)
-                    print(f"{self.node_name} is back online", flush=True)
-                    self.online = True
+                    # print(f"{self.node_name} is going offline", flush=True)
+                    # self.online = False
+                    # time.sleep(20)
+                    # print(f"{self.node_name} is back online", flush=True)
+                    # self.online = True
                 ## for testing leader breakdown    
                 self.leader()
             elif self.state == self.states[1]:
@@ -282,19 +286,16 @@ if __name__ == '__main__':
     # removing the current node from its cluster list
     cluster = [node for node in cluster if node['name'] != args.name]
 
-    # **experimental** incrementing the port number based on index, separate ports for separate node
-
     port = args.port + args.clusterNodes.index(args.name)
+
     my_node = Node(args.name, default_state, port, cluster)
     try:
         print(f"Node {args.name} is starting", flush=True)
         my_node.start_loop_thread()
-        ## experimental handle exit -- stop server
-        # my_node.handle_exit()
     except Exception as e:
         print("Exception", e, flush=True)
 
-    # exit handler *terminates threads and kills server
+    # exit handler *terminates threads and kills server ** experimental
     atexit.register(my_node.handle_exit)
     signal.signal(signal.SIGTERM, my_node.handle_exit)
     signal.signal(signal.SIGINT, my_node.handle_exit)
