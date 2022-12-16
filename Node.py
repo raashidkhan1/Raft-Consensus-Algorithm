@@ -133,20 +133,29 @@ class Node :
         self.election_timeout = self.timer()
 
         self.voted_for = None
-
+        ## candidate gets out of election if heartbeat received
         if self.state == self.states[2] and self.leader_node != leader_node :
             print(f"{self.node_name} says: I was candidate, but leader {leader_node} is elected so becoming follower", flush=True)
             self.state = self.states[1]
             self.leader_node = leader_node
             self.term = term
-            return term, self.leader_node
-        elif self.term < term: 
+            return self.term, self.leader_node
+        ## follower updates its term and leader node if not in sync
+        elif self.term < term and self.state == self.states[1]: 
             self.term = term
             self.leader_node = leader_node
             print(f"{self.node_name} says: update my own term from new leader {leader_node}", flush=True)            
-            return term, self.leader_node
+            return self.term, self.leader_node
+        ## node has term greater than leader, reject heartbeat due to obsolete leader 
         elif self.term > term:
             print(f"{self.node_name} says: rejecting hearbeat from : ", leader_node, flush=True)
+            return self.term, self.leader_node
+        ## if terms are same but the node was leader before coming online again, then sync
+        elif self.term < term and self.state == self.states[0]:
+            print(f"{self.node_name} is a obsolete leader, syncing with current leader {leader_node}, becoming follower", flush=True)
+            self.term = term
+            self.leader_node = leader_node
+            self.state = self.states[1]
             return self.term, self.leader_node
         else:
             print(f"{self.node_name} says: I'm in sync with {leader_node}", flush=True)
@@ -219,10 +228,12 @@ class Node :
             if self.state == self.states[0]:
                 if(count == 5):
                     ## for testing leader breakdown
+                    print(f"{self.node_name} is going offline", flush=True)
                     self.online = False
                     time.sleep(20)
                 ## for testing leader breakdown    
                 self.online = True
+                print(f"{self.node_name} is back online", flush=True)
                 self.leader()
             elif self.state == self.states[1]:
                 self.follower()
