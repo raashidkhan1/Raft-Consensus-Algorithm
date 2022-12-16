@@ -181,6 +181,11 @@ class Node :
         
         min_vote = float(0.5 * float(len(self.cluster_nodes)+1))
 
+        ## if heartbeat received during election and transitioned to follower, get out
+        if self.state == self.states[1]:
+            print(f"{self.node_name} says: Damn, Got changed to follower, f**k the election")
+            return
+
         ## check vote count
         if self.vote_count > min_vote:
             print(f"{self.node_name} says: Iam the leader now bitch", flush=True)
