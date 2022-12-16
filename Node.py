@@ -231,9 +231,9 @@ class Node :
                     print(f"{self.node_name} is going offline", flush=True)
                     self.online = False
                     time.sleep(20)
+                    print(f"{self.node_name} is back online", flush=True)
+                    self.online = True
                 ## for testing leader breakdown    
-                self.online = True
-                print(f"{self.node_name} is back online", flush=True)
                 self.leader()
             elif self.state == self.states[1]:
                 self.follower()
