@@ -23,6 +23,7 @@ class Node :
         self.vote_count = float(0)
         self.voted_for = None
         self.leader_node = ""
+        self.online = True
         # all valid states
         self.states = ["leader", "follower", "candidate"]
 
@@ -80,18 +81,26 @@ class Node :
                 return
 
     def send_vote(self, term, candidate_node):
+        ## Follower with term less than candidate and not voted yet
         if self.state == self.states[1] and self.term < term and self.voted_for == None:
             print(f"{self.node_name} says: voting for {candidate_node}", flush=True)
             self.voted_for = candidate_node
             return True
+        ## Itself a candidate
         elif self.state == self.states[2]:
             print(f"{self.node_name} says : my state is {self.state}, not voting :P ", flush=True)
             return False
+        ## already voted, election over
         elif self.voted_for != None:
             print(f"{self.node_name} says : Already voted for {self.voted_for}", flush=True)
             return False
-        else:
-            print(f"{self.node_name} says : My state is {self.state} & your current term {term} is lower than my term {self.term}, not voting for {candidate_node}", flush=True)
+        ## ahead of candidate, election over
+        elif self.term > term:
+            print(f"{self.node_name} says: my term {self.term} is higher than your term {term}, election is over bro", flush=True)
+            return False
+        ## is a leader, offline
+        elif not self.online: 
+            print(f"{self.node_name} says : My state is {self.state} and online status is {self.online}, not voting for {candidate_node}", flush=True)
             return False
 
     # timer logic for
@@ -147,12 +156,12 @@ class Node :
     ### functions for each type of node
 
     def leader(self):
-        print(f"{self.node_name} says I'm a leader man", flush=True)
+        print(f"{self.node_name} says: I'm a leader man", flush=True)
         time.sleep(random.randrange(1,2))
         self.send_heartbeat()
 
     def candidate(self):
-        print(f"{self.node_name} says I'm a candidate man", flush=True)
+        print(f"{self.node_name} says: I'm a candidate man", flush=True)
         self.vote_count +=1
         previous_term = self.term
         self.term +=1
@@ -187,10 +196,10 @@ class Node :
             self.vote_count = 0
 
     def follower(self):
-        print(f"{self.node_name} says I'm a follower man", flush=True)
+        print(f"{self.node_name} says: I'm a follower man", flush=True)
         self.heartbeat_received = False
         time.sleep(self.election_timeout)
-        print(f"{self.node_name} says : heartbeat :", self.heartbeat_received, flush=True)
+        print(f"{self.node_name} says: heartbeat from {self.leader_node} :", self.heartbeat_received, flush=True)
         if not self.heartbeat_received:
            self.state=self.states[2]
 
@@ -204,7 +213,11 @@ class Node :
             count +=1
             if self.state == self.states[0]:
                 if(count == 5):
+                    ## for testing leader breakdown
+                    self.online = False
                     time.sleep(20)
+                ## for testing leader breakdown    
+                self.online = True
                 self.leader()
             elif self.state == self.states[1]:
                 self.follower()
