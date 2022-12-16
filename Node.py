@@ -92,11 +92,11 @@ class Node :
             return False
         ## already voted, election over
         elif self.voted_for != None:
-            print(f"{self.node_name} says: to {candidate_node}- Already voted for {self.voted_for}", flush=True)
+            print(f"{self.node_name} says: to {candidate_node}- already voted for {self.voted_for}", flush=True)
             return False
         ## ahead of candidate, election over
         elif self.term > term:
-            print(f"{self.node_name} says: my term {self.term} is higher than your term {term}, election is over bro", flush=True)
+            print(f"{self.node_name} says: my term {self.term} is higher than your term {term}, election is over", flush=True)
             return False
         ## is a leader, offline
         elif not self.online: 
@@ -133,6 +133,12 @@ class Node :
         self.election_timeout = self.timer()
 
         self.voted_for = None
+
+        response_term, response_leader_node  = self.respond_on_heartbeat(term, leader_node)
+
+        return response_term, response_leader_node
+
+    def respond_on_heartbeat(self, term, leader_node):
         ## candidate gets out of election if heartbeat received
         if self.state == self.states[2] and self.leader_node != leader_node :
             print(f"{self.node_name} says: I was candidate, but leader {leader_node} is elected so becoming follower", flush=True)
@@ -165,12 +171,12 @@ class Node :
     ### functions for each type of node
 
     def leader(self):
-        print(f"{self.node_name} says: I'm a leader man", flush=True)
+        print(f"{self.node_name} says: I'm a leader", flush=True)
         time.sleep(random.randrange(1,2))
         self.send_heartbeat()
 
     def candidate(self):
-        print(f"{self.node_name} says: I'm a candidate man", flush=True)
+        print(f"{self.node_name} says: I'm a candidate", flush=True)
         self.vote_count +=1
         previous_term = self.term
         self.term +=1
@@ -192,12 +198,12 @@ class Node :
 
         ## if heartbeat received during election and transitioned to follower, get out
         if self.state == self.states[1]:
-            print(f"{self.node_name} says: Damn, Got changed to follower, f**k the election")
+            print(f"{self.node_name} says: leader already elected, cancelling my candidature")
             return
 
         ## check vote count
         if self.vote_count > min_vote:
-            print(f"{self.node_name} says: Iam the leader now bitch", flush=True)
+            print(f"{self.node_name} says: Iam the new leader", flush=True)
             self.state = self.states[0]
             self.vote_count = 0
             self.voted_for = None
@@ -210,7 +216,7 @@ class Node :
             self.vote_count = 0
 
     def follower(self):
-        print(f"{self.node_name} says: I'm a follower man", flush=True)
+        print(f"{self.node_name} says: I'm a follower", flush=True)
         self.heartbeat_received = False
         time.sleep(self.election_timeout)
         print(f"{self.node_name} says: heartbeat from {self.leader_node} :", self.heartbeat_received, flush=True)
