@@ -91,7 +91,7 @@ class Node :
             print(f"{self.node_name} says : Already voted for {self.voted_for}", flush=True)
             return False
         else:
-            print(f"{self.node_name} says : your current term {term} is lower than my term {self.term}, not voting for {candidate_node}", flush=True)
+            print(f"{self.node_name} says : My state is {self.state} & your current term {term} is lower than my term {self.term}, not voting for {candidate_node}", flush=True)
             return False
 
     # timer logic for
