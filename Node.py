@@ -81,7 +81,7 @@ class Node :
     # individual node voting function
     def send_vote(self, term, candidate_node):
         ## Follower with term less than candidate and not voted yet
-        if self.state == self.states[1] and self.term < term and self.voted_for == None:
+        if self.state == self.states[1] and self.term < term and self.voted_for == None and self.online == True:
             print(f"{self.node_name} says: voting for {candidate_node}", flush=True)
             self.voted_for = candidate_node
             return True
