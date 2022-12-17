@@ -104,7 +104,7 @@ class Node :
 
     # timer logic for
     def timer(self):
-        return random.randrange(3, 8)
+        return random.randrange(3, 23)
 
     # placeholder function for heartbeats, does not actually append entries/log replication
     def append_entries(self, node, port):
